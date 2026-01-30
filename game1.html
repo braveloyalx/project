@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pasapalabra: Digitalització 4t ESO</title>
+    <style>
+        :root {
+            --bg-color: #2c3e50;
+            --circle-bg: #34495e;
+            --letter-default: #2980b9;
+            --letter-correct: #27ae60;
+            --letter-wrong: #c0392b;
+            --letter-active: #f39c12;
+            --text-color: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        header {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        h1 { margin: 0; font-size: 2rem; }
+        h3 { margin: 5px 0; color: #bdc3c7; }
+
+        /* El Rosco */
+        .game-container {
+            position: relative;
+            width: 500px;
+            height: 500px;
+            margin: 20px auto;
+        }
+
+        .circle-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            list-style: none;
+            padding: 0;
+        }
+
+        .letter-item {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background-color: var(--letter-default);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            transition: transform 0.3s, background-color 0.3s;
+            /* Càlculs de posició fets via JS o CSS manual, aquí farem JS per ser dinàmics */
+        }
+
+        .letter-item.active { background-color: var(--letter-active); transform: scale(1.3); z-index: 10; border: 2px solid white; }
+        .letter-item.correct { background-color: var(--letter-correct); }
+        .letter-item.wrong { background-color: var(--letter-wrong); }
+
+        /* Zona central d'informació */
+        .center-info {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            width: 60%;
+        }
+
+        .score-box { font-size: 1.5rem; margin-bottom: 10px; }
+        .timer { font-size: 2.5rem; font-weight: bold; color: var(--letter-active); }
+
+        /* Zona de preguntes */
+        .question-area {
+            background-color: var(--circle-bg);
+            padding: 20px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        #current-letter-display {
+            font-size: 1.2rem;
+            color: var(--letter-active);
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        #definition {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            min-height: 60px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            font-size: 1rem;
+            border-radius: 5px;
+            border: none;
+            width: 200px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        #btn-submit { background-color: var(--letter-correct); color: white; }
+        #btn-pasapalabra { background-color: var(--letter-active); color: #2c3e50; }
+        
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+
+        /* Resultats */
+        #results-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+        }
+        #results-modal h2 { font-size: 3rem; color: var(--letter-active); }
+        #restart-btn { background-color: var(--letter-default); color: white; margin-top: 20px; }
+
+        @media (max-width: 600px) {
+            .game-container { width: 300px; height: 300px; }
+            .letter-item { width: 25px; height: 25px; font-size: 0.8rem; }
+            .question-area { width: 95%; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>DIGITALITZACIÓ 4t ESO</h1>
+        <h3>App Inventor, Python i Pseudocodi</h3>
+    </header>
+
+    <div class="game-container">
+        <ul class="circle-container" id="rosco">
+            </ul>
+        <div class="center-info">
+            <div class="score-box">Encerts: <span id="score">0</span></div>
+            <div class="timer" id="timer">150</div>
+        </div>
+    </div>
+
+    <div class="question-area">
+        <span id="current-letter-display">Comença per A</span>
+        <p id="definition">Carregant...</p>
+        
+        <div class="input-group">
+            <input type="text" id="user-answer" placeholder="La teva resposta..." autocomplete="off">
+            <button id="btn-submit">Enviar</button>
+            <button id="btn-pasapalabra">Pasapalabra</button>
+        </div>
+    </div>
+
+    <div id="results-modal">
+        <h2>Joc Acabat!</h2>
+        <p>Encerts: <span id="final-score">0</span></p>
+        <p>Errors: <span id="final-errors">0</span></p>
+        <button id="restart-btn" onclick="location.reload()">Tornar a jugar</button>
+    </div>
+
+    <script>
+        // --- DADES DEL JOC (PREGUNTES) ---
+        // Pots editar aquestes preguntes fàcilment.
+        const questions = [
+            { letter: "A", answer: "Algoritme", text: "Conjunt ordenat d'instruccions o regles ben definides per resoldre un problema." },
+            { letter: "B", answer: "Blocs", text: "A App Inventor, peces visuals que s'encaixen per crear la lògica del programa." },
+            { letter: "C", answer: "Compilador", text: "Programa que tradueix tot el codi font d'un programa a codi màquina d'una sola vegada." },
+            { letter: "D", answer: "Depuració", text: "Procés de trobar i corregir errors (bugs) en el codi font." },
+            { letter: "E", answer: "Esdeveniment", text: "Acció detectada pel programa (clic, sacsejada, temporitzador) que dispara una resposta." },
+            { letter: "F", answer: "Float", text: "Tipus de dada en Python utilitzada per a nombres decimals." },
+            { letter: "G", answer: "GUI", text: "Sigles en anglès d'Interfície Gràfica d'Usuari." },
+            { letter: "H", answer: "Hardware", text: "Conjunt d'elements físics o materials que constitueixen un sistema informàtic." },
+            { letter: "I", answer: "Input", text: "Funció de Python que permet a l'usuari introduir dades des del teclat." },
+            { letter: "J", answer: "Java", text: "Llenguatge de programació en què es basa el sistema Android internament." },
+            { letter: "L", answer: "Llista", text: "Estructura de dades que permet emmagatzemar múltiples elements en una sola variable." },
+            { letter: "M", answer: "MIT", text: "Institut Tecnològic de Massachusetts, creadors d'App Inventor." },
+            { letter: "N", answer: "Notificador", text: "Component d'App Inventor que serveix per mostrar missatges d'alerta o diàlegs a l'usuari." },
+            { letter: "O", answer: "Output", text: "Informació que surt d'un sistema informàtic (resultat)." },
+            { letter: "P", answer: "Python", text: "Llenguatge de programació d'alt nivell, interpretat i molt utilitzat en Ciència de Dades." },
+            { letter: "R", answer: "Range", text: "Funció de Python que genera una seqüència de nombres, molt usada en bucles 'for'." },
+            { letter: "S", answer: "Si", text: "Condicional utilitzat en pseudocodi per comprovar si es produeix una condició." },
+            { letter: "T", answer: "Tortuga", text: "Mòdul gràfic de Python (Turtle) utilitzat per ensenyar a programar dibuixant." },
+            { letter: "U", answer: "Usuari", text: "Persona que utilitza l'aplicació o sistema informàtic." },
+            { letter: "V", answer: "Variable", text: "Espai de memòria amb un nom simbòlic que s'utilitza per emmagatzemar un valor que pot canviar." },
+            { letter: "W", answer: "While", text: "Bucle que repeteix un bloc de codi mentre una condició sigui certa." },
+            { letter: "X", answer: "Extensió", text: "Conté la X. Fitxer o complement que afegeix funcionalitats extra a un programa o navegador." },
+            { letter: "Z", answer: "Horitzontal", text: "Conté la Z. Disposició (Arrangement) a App Inventor per posar elements un al costat de l'altre." }
+        ];
+
+        // --- LÒGICA DEL JOC ---
+        
+        let currentIndex = 0;
+        let score = 0;
+        let errors = 0;
+        let timeLeft = 600;
+        let timerInterval;
+        let pendingQuestions = [...questions]; // Còpia per gestionar les pendents (pasapalabra)
+        
+        // Estats de cada lletra: 0=pendent, 1=correcte, 2=error
+        const questionStatus = new Array(questions.length).fill(0); 
+
+        // Elements del DOM
+        const rosco = document.getElementById('rosco');
+        const definitionEl = document.getElementById('definition');
+        const currentLetterEl = document.getElementById('current-letter-display');
+        const inputEl = document.getElementById('user-answer');
+        const scoreEl = document.getElementById('score');
+        const timerEl = document.getElementById('timer');
+        const btnSubmit = document.getElementById('btn-submit');
+        const btnPasa = document.getElementById('btn-pasapalabra');
+
+        // Inicialitzar Rosco Visual
+        function initRosco() {
+            const radius = 220; // Radi del cercle
+            const total = questions.length;
+            const angleStep = (2 * Math.PI) / total;
+
+            questions.forEach((q, index) => {
+                const li = document.createElement('li');
+                li.classList.add('letter-item');
+                li.textContent = q.letter;
+                li.id = `letter-${index}`;
+                
+                // Càlcul trigonomètric per posar en cercle (començant a les 12 del rellotge - PI/2)
+                const angle = index * angleStep - (Math.PI / 2);
+                const x = Math.round(radius * Math.cos(angle));
+                const y = Math.round(radius * Math.sin(angle));
+
+                // Ajustem perquè 0,0 sigui el centre del contenidor (250,250)
+                li.style.left = `${230 + x}px`; 
+                li.style.top = `${230 + y}px`;
+
+                rosco.appendChild(li);
+            });
+        }
+
+        function updateGameDisplay() {
+            if (pendingQuestions.length === 0) {
+                endGame();
+                return;
+            }
+
+            // Busquem la següent pregunta pendent
+            // Trobar l'índex original a l'array 'questions' basat en l'objecte actual de pendingQuestions
+            const currentQ = pendingQuestions[0];
+            const originalIndex = questions.indexOf(currentQ);
+
+            // Actualitzar visualització lletra activa
+            document.querySelectorAll('.letter-item').forEach(el => el.classList.remove('active'));
+            const activeLetter = document.getElementById(`letter-${originalIndex}`);
+            if(activeLetter) activeLetter.classList.add('active');
+
+            // Actualitzar textos
+            let prefix = currentQ.answer.toLowerCase().includes(currentQ.letter.toLowerCase()) && currentQ.letter !== currentQ.answer[0] ? "Conté la" : "Comença per";
+            if (currentQ.letter === 'X' || currentQ.letter === 'Z') prefix = "Conté la"; // Forçar per X i Z si cal
+
+            currentLetterEl.textContent = `${prefix} ${currentQ.letter}`;
+            definitionEl.textContent = currentQ.text;
+            inputEl.value = '';
+            inputEl.focus();
+        }
+
+        function normalizeString(str) {
+            return str.toLowerCase()
+                      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Treure accents
+                      .trim();
+        }
+
+        function checkAnswer() {
+            if (pendingQuestions.length === 0) return;
+
+            const currentQ = pendingQuestions[0];
+            const originalIndex = questions.indexOf(currentQ);
+            const userAns = normalizeString(inputEl.value);
+            const correctAns = normalizeString(currentQ.answer);
+
+            const letterDiv = document.getElementById(`letter-${originalIndex}`);
+
+            if (userAns === correctAns) {
+                // Correcte
+                score++;
+                scoreEl.textContent = score;
+                letterDiv.classList.add('correct');
+                letterDiv.classList.remove('active');
+                pendingQuestions.shift(); // Treure de la llista de pendents
+            } else {
+                // Incorrecte
+                errors++;
+                letterDiv.classList.add('wrong');
+                letterDiv.classList.remove('active');
+                pendingQuestions.shift(); // Treure de la llista (no es repeteix si es falla)
+            }
+
+            updateGameDisplay();
+        }
+
+        function pasapalabra() {
+            if (pendingQuestions.length === 0) return;
+
+            const currentQ = pendingQuestions[0];
+            pendingQuestions.shift(); // Treure del principi
+            pendingQuestions.push(currentQ); // Posar al final
+            
+            updateGameDisplay();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerEl.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            document.getElementById('results-modal').style.display = 'flex';
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('final-errors').textContent = errors;
+        }
+
+        // --- EVENTS ---
+        
+        btnSubmit.addEventListener('click', checkAnswer);
+        btnPasa.addEventListener('click', pasapalabra);
+        
+        inputEl.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') checkAnswer();
+        });
+
+        // INICIAR
+        initRosco();
+        updateGameDisplay();
+        startTimer();
+
+    </script>
+    <main class="game-container">
+        <section class="game-card">
+                <a href="index.html" class="btn">Tornar a l'inici</a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qui vol ser un Mestre Digital?</title>
+    <style>
+        :root {
+            --dark-blue: #020b2e;
+            --purple: #1a0b40;
+            --gold: #f1c40f;
+            --correct: #27ae60;
+            --wrong: #c0392b;
+            --selected: #d35400;
+            --text-main: #ffffff;
+        }
+
+        body {
+            background: radial-gradient(circle at center, var(--purple), var(--dark-blue));
+            font-family: 'Verdana', sans-serif;
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            justify-content: center;
+        }
+
+        /* Capçalera i Logo */
+        header { text-align: center; margin-bottom: 20px; }
+        h1 { 
+            font-family: 'Copperplate', 'Trajan Pro', serif; 
+            color: var(--gold); 
+            text-shadow: 2px 2px 4px #000;
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        /* Contenidor Principal */
+        .game-container {
+            display: flex;
+            gap: 20px;
+            width: 90%;
+            max-width: 1200px;
+            height: 80vh;
+        }
+
+        /* Àrea esquerra: Joc */
+        .game-area {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding-bottom: 20px;
+        }
+
+        /* Comodins */
+        .lifelines {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .lifeline-btn {
+            background: #000;
+            border: 2px solid var(--text-main);
+            border-radius: 50%;
+            color: var(--text-main);
+            width: 60px;
+            height: 60px;
+            font-weight: bold;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lifeline-btn:hover:not(:disabled) { background: var(--gold); color: #000; }
+        .lifeline-btn:disabled { opacity: 0.3; cursor: not-allowed; border-color: #555; }
+
+        /* Pregunta */
+        .question-box {
+            background: linear-gradient(#1034a6, #000);
+            border: 2px solid var(--text-main);
+            border-radius: 30px;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Respostes */
+        .answers-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .answer-btn {
+            background: linear-gradient(90deg, #000, #1034a6, #000);
+            border: 1px solid var(--text-main);
+            border-radius: 30px;
+            padding: 15px 10px;
+            color: var(--text-main);
+            font-size: 1.1rem;
+            text-align: left;
+            padding-left: 20px;
+            cursor: pointer;
+            position: relative;
+            transition: 0.2s;
+        }
+
+        .answer-btn:hover:not(.disabled) { background: linear-gradient(90deg, #1034a6, #2980b9, #1034a6); }
+        .answer-btn.selected { background: var(--selected); color: white; font-weight: bold; }
+        .answer-btn.correct { background: var(--correct); animation: blink 0.5s 3; }
+        .answer-btn.wrong { background: var(--wrong); }
+        .answer-btn.hidden { visibility: hidden; } /* Per al comodí 50:50 */
+
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* Àrea dreta: Escala de premis */
+        .ladder-area {
+            flex: 1;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #555;
+            padding: 10px;
+            display: flex;
+            flex-direction: column-reverse; /* Per començar de baix a dalt */
+            justify-content: center;
+            border-radius: 10px;
+        }
+
+        .ladder-step {
+            padding: 5px 10px;
+            color: #f39c12;
+            display: flex;
+            justify-content: space-between;
+            border-radius: 5px;
+            margin: 2px 0;
+            font-size: 0.9rem;
+        }
+
+        .ladder-step.active { background: var(--gold); color: #000; font-weight: bold; }
+        .ladder-step.safe-haven { color: white; }
+        .ladder-step span:first-child { width: 30px; }
+
+        /* Modals (Game Over / Missatges) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: var(--dark-blue);
+            border: 2px solid var(--gold);
+            padding: 30px;
+            text-align: center;
+            max-width: 400px;
+            border-radius: 15px;
+        }
+        .modal h2 { color: var(--gold); }
+        .btn-restart { 
+            margin-top: 20px; padding: 10px 20px; 
+            background: var(--gold); border: none; font-weight: bold; cursor: pointer; 
+        }
+
+        /* Adaptació mòbil */
+        @media (max-width: 768px) {
+            .game-container { flex-direction: column; height: auto; }
+            .ladder-area { display: none; } /* Ocultem escala al mòbil per espai */
+            .answers-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>QUI VOL SER UN MESTRE DIGITAL?</h1>
+    </header>
+
+    <div class="game-container">
+        <div class="game-area">
+            
+            <div class="lifelines">
+                <button class="lifeline-btn" id="btn-5050" title="50:50">50%</button>
+                <button class="lifeline-btn" id="btn-phone" title="Trucada">📞</button>
+                <button class="lifeline-btn" id="btn-audience" title="Públic">👥</button>
+            </div>
+
+            <div class="question-box" id="question-text">
+                Carregant pregunta...
+            </div>
+
+            <div class="answers-grid">
+                <button class="answer-btn" id="btn-0" onclick="selectAnswer(0)">A: </button>
+                <button class="answer-btn" id="btn-1" onclick="selectAnswer(1)">B: </button>
+                <button class="answer-btn" id="btn-2" onclick="selectAnswer(2)">C: </button>
+                <button class="answer-btn" id="btn-3" onclick="selectAnswer(3)">D: </button>
+            </div>
+        </div>
+
+        <div class="ladder-area" id="ladder">
+            </div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">Títol</h2>
+            <p id="modal-msg">Missatge</p>
+            <button class="btn-restart" id="modal-btn" onclick="closeModal()">Tancar</button>
+        </div>
+    </div>
+
+    <script>
+        // --- BASE DE DADES DE PREGUNTES (15 nivells) ---
+        // Format: { q: "Pregunta", a: ["A", "B", "C", "D"], correct: index (0-3), hint: "Pista" }
+        const questions = [
+            { 
+                q: "A Python, quina funció utilitzem per mostrar text per pantalla?", 
+                a: ["input()", "print()", "show()", "screen()"], 
+                correct: 1, 
+                hint: "És la paraula anglesa per 'imprimir'." 
+            },
+            { 
+                q: "Quina forma geomètrica representa una decisió (condicional) en un diagrama de flux?", 
+                a: ["Rectangle", "Cercle", "Rombe", "Triangle"], 
+                correct: 2, 
+                hint: "Té quatre costats iguals però no és un quadrat." 
+            },
+            { 
+                q: "A App Inventor, a quina secció trobem el component 'Botó'?", 
+                a: ["Interfície d'Usuari", "Sensors", "Dibuix i Animació", "Connectivitat"], 
+                correct: 0, 
+                hint: "És el primer calaix de l'esquerra, el més bàsic." 
+            },
+            { 
+                q: "Com es diu el fitxer instal·lable d'una aplicació Android?", 
+                a: [".exe", ".dmg", ".apk", ".html"], 
+                correct: 2, 
+                hint: "Les sigles venen d'Android PacKage." 
+            },
+            { 
+                q: "Què és un 'bug' en programació?", 
+                a: ["Un virus", "Un error en el codi", "Un tipus de variable", "Un videojoc"], 
+                correct: 1, 
+                hint: "Literalment significa 'insecte', però en informàtica és una fallada." 
+            },
+            // Nivell 6 (Segur)
+            { 
+                q: "En pseudocodi, quina estructura utilitzem per repetir una acció diverses vegades?", 
+                a: ["Condicional (Si)", "Bucle (Mentre/Per)", "Variable", "Constant"], 
+                correct: 1, 
+                hint: "Permet fer voltes sobre el mateix codi." 
+            },
+            { 
+                q: "Quin d'aquests tipus de dades en Python serveix per guardar nombres decimals?", 
+                a: ["int", "string", "float", "boolean"], 
+                correct: 2, 
+                hint: "Fa referència al punt flotant (coma)." 
+            },
+            { 
+                q: "A App Inventor, si volem que el mòbil vibri, quin component necessitem?", 
+                a: ["So", "Reproductor", "Notificador", "Vibrator"], 
+                correct: 0, 
+                hint: "Encara que sembli estrany, està dins del component 'So' (Sound)." 
+            },
+            { 
+                q: "Quin resultat donarà a Python: 10 % 3 ?", 
+                a: ["3.33", "1", "3", "10"], 
+                correct: 1, 
+                hint: "L'operador % és el mòdul: retorna el residu de la divisió." 
+            },
+            { 
+                q: "Com s'escriu una llista buida a Python?", 
+                a: ["list()", "[]", "{}", "<>"], 
+                correct: 1, 
+                hint: "S'utilitzen els claudàtors quadrats." 
+            },
+            // Nivell 11 (Segur)
+            { 
+                q: "Quina propietat d'un component d'App Inventor hem de canviar perquè no es vegi a la pantalla?", 
+                a: ["Enabled", "Visible", "Color", "Text"], 
+                correct: 1, 
+                hint: "És un 'checkbox' que si el desmarques, desapareix." 
+            },
+            { 
+                q: "A Python, què fa la funció 'int(input())'?", 
+                a: ["Llegeix un text", "Llegeix un número enter", "Escriu un número", "Dóna error sempre"], 
+                correct: 1, 
+                hint: "Converteix el text entrat per l'usuari a enter." 
+            },
+            { 
+                q: "Quin color té el bloc de control 'if / then' a App Inventor?", 
+                a: ["Vermell", "Verd", "Carbassa (Taronja fosc)", "Blau"], 
+                correct: 2, 
+                hint: "Els blocs de control solen ser d'aquest color marronós/taronja." 
+            },
+            { 
+                q: "En programació, què significa que un llenguatge és 'Compilat'?", 
+                a: ["Es llegeix línia a línia al moment", "Es tradueix tot a codi màquina abans d'executar", "Només funciona a Windows", "No té errors"], 
+                correct: 1, 
+                hint: "El contrari d'interpretat. Crea un executable." 
+            },
+            { 
+                q: "PREGUNTA FINAL: Quin és l'índex del primer element d'una llista en Python?", 
+                a: ["1", "0", "-1", "A"], 
+                correct: 1, 
+                hint: "En informàtica gairebé sempre comencem a comptar des d'aquí." 
+            }
+        ];
+
+        // Premis
+        const prizes = [
+            "100€", "200€", "300€", "500€", "1.000€", // Segur 1
+            "2.000€", "4.000€", "8.000€", "16.000€", "32.000€", // Segur 2
+            "64.000€", "125.000€", "250.000€", "500.000€", "1.000.000€" // Final
+        ];
+
+        // --- ESTAT DEL JOC ---
+        let currentQuestionIndex = 0;
+        let isAnswering = false; // Per bloquejar clics
+        let lifelinesUsed = { fifty: false, phone: false, audience: false };
+
+        // Elements DOM
+        const qText = document.getElementById("question-text");
+        const btns = [
+            document.getElementById("btn-0"), document.getElementById("btn-1"),
+            document.getElementById("btn-2"), document.getElementById("btn-3")
+        ];
+        const ladderDiv = document.getElementById("ladder");
+        const modal = document.getElementById("modal");
+        
+        // --- INICIALITZACIÓ ---
+        function initGame() {
+            currentQuestionIndex = 0;
+            lifelinesUsed = { fifty: false, phone: false, audience: false };
+            
+            // Reactivar botons comodins
+            document.querySelectorAll(".lifeline-btn").forEach(btn => btn.disabled = false);
+            
+            drawLadder();
+            loadQuestion();
+        }
+
+        function drawLadder() {
+            ladderDiv.innerHTML = "";
+            for (let i = 0; i < prizes.length; i++) {
+                const step = document.createElement("div");
+                step.className = "ladder-step";
+                if (i === 4 || i === 9 || i === 14) step.classList.add("safe-haven");
+                
+                step.innerHTML = `<span>${i + 1}</span> <span>${prizes[i]}</span>`;
+                step.id = `step-${i}`;
+                ladderDiv.appendChild(step);
+            }
+        }
+
+        function updateLadder() {
+            document.querySelectorAll(".ladder-step").forEach(s => s.classList.remove("active"));
+            const currentStep = document.getElementById(`step-${currentQuestionIndex}`);
+            if(currentStep) currentStep.classList.add("active");
+        }
+
+        function loadQuestion() {
+            isAnswering = false;
+            updateLadder();
+            
+            // Restaurar estils
+            btns.forEach(btn => {
+                btn.className = "answer-btn"; // Reset classes
+                btn.style.visibility = "visible";
+            });
+
+            const q = questions[currentQuestionIndex];
+            qText.innerText = q.q;
+            btns.forEach((btn, index) => {
+                btn.innerText = ["A: ", "B: ", "C: ", "D: "][index] + q.a[index];
+            });
+        }
+
+        // --- LÒGICA DE RESPOSTA ---
+        function selectAnswer(index) {
+            if (isAnswering) return;
+            isAnswering = true;
+
+            const btn = btns[index];
+            btn.classList.add("selected");
+
+            // Suspense... (2 segons)
+            setTimeout(() => {
+                checkResult(index);
+            }, 2000);
+        }
+
+        function checkResult(selectedIndex) {
+            const correctIndex = questions[currentQuestionIndex].correct;
+            const btnSelected = btns[selectedIndex];
+            const btnCorrect = btns[correctIndex];
+
+            btnSelected.classList.remove("selected");
+
+            if (selectedIndex === correctIndex) {
+                // CORRECTE
+                btnSelected.classList.add("correct");
+                // Tocar àudio de victòria (opcional)
+                setTimeout(() => {
+                    nextLevel();
+                }, 1500);
+            } else {
+                // INCORRECTE
+                btnSelected.classList.add("wrong");
+                btnCorrect.classList.add("correct"); // Mostrar quina era la bona
+                setTimeout(() => {
+                    gameOver();
+                }, 2000);
+            }
+        }
+
+        function nextLevel() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex >= questions.length) {
+                showModal("FELICITATS!", "Ets un Mestre Digital! Has guanyat 1.000.000€ (virtuals).", true);
+            } else {
+                loadQuestion();
+            }
+        }
+
+        function gameOver() {
+            let winAmount = "0€";
+            if (currentQuestionIndex >= 10) winAmount = "32.000€";
+            else if (currentQuestionIndex >= 5) winAmount = "1.000€";
+
+            showModal("JOC ACABAT", `Has fallat. T'emportes: ${winAmount}`, true);
+        }
+
+        // --- COMODINS ---
+        
+        // 1. 50:50
+        document.getElementById("btn-5050").onclick = function() {
+            if (lifelinesUsed.fifty || isAnswering) return;
+            lifelinesUsed.fifty = true;
+            this.disabled = true;
+
+            const correct = questions[currentQuestionIndex].correct;
+            let removed = 0;
+            // Eliminem 2 opcions incorrectes aleatòries
+            while (removed < 2) {
+                let rand = Math.floor(Math.random() * 4);
+                if (rand !== correct && btns[rand].style.visibility !== "hidden") {
+                    btns[rand].style.visibility = "hidden";
+                    removed++;
+                }
+            }
+        };
+
+        // 2. Trucada
+        document.getElementById("btn-phone").onclick = function() {
+            if (lifelinesUsed.phone || isAnswering) return;
+            lifelinesUsed.phone = true;
+            this.disabled = true;
+
+            const hint = questions[currentQuestionIndex].hint;
+            showModal("📞 Trucant al professor...", `El profe et diu: "${hint}"`, false);
+        };
+
+        // 3. Públic
+        document.getElementById("btn-audience").onclick = function() {
+            if (lifelinesUsed.audience || isAnswering) return;
+            lifelinesUsed.audience = true;
+            this.disabled = true;
+
+            const correct = questions[currentQuestionIndex].correct;
+            // Generem percentatges falsos on la correcta té més probabilitat (ex: 60-80%)
+            let correctPerc = Math.floor(Math.random() * 30) + 50; // Entre 50% i 80%
+            let rest = 100 - correctPerc;
+            
+            // Assignar textos
+            let msg = "El públic ha votat:\n";
+            let percentages = [0,0,0,0];
+            percentages[correct] = correctPerc;
+            
+            // Repartir la resta
+            for(let i=0; i<4; i++) {
+                if(i !== correct) {
+                    let p = Math.floor(Math.random() * rest);
+                    percentages[i] = p;
+                    rest -= p;
+                }
+            }
+            // Sumar romanent a un incorrecte qualsevol per sumar 100
+            let wrongIndex = percentages.findIndex((p, i) => i !== correct);
+            percentages[wrongIndex] += rest;
+
+            msg += `A: ${percentages[0]}%  |  B: ${percentages[1]}%  |  C: ${percentages[2]}%  |  D: ${percentages[3]}%`;
+
+            showModal("👥 L'enquesta del públic", msg, false);
+        };
+
+        // --- GESTIÓ MODALS ---
+        function showModal(title, text, isReset) {
+            document.getElementById("modal-title").innerText = title;
+            document.getElementById("modal-msg").innerText = text;
+            const btn = document.getElementById("modal-btn");
+            
+            if (isReset) {
+                btn.innerText = "Tornar a jugar";
+                btn.onclick = () => { location.reload(); };
+            } else {
+                btn.innerText = "Continuar";
+                btn.onclick = closeModal;
+            }
+            modal.style.display = "flex";
+        }
+
+        function closeModal() {
+            modal.style.display = "none";
+        }
+
+        // START
+        initGame();
+
+    </script>
+    <main class="game-container">
+        <section class="game-card">
+                <a href="index.html" class="btn">Tornar a l'inici</a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

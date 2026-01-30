@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Penjat: Programació i Apps</title>
+    <style>
+        :root {
+            --bg-color: #202124;
+            --text-color: #e8eaed;
+            --accent: #8ab4f8;
+            --wrong: #f28b82;
+            --correct: #81c995;
+            --key-bg: #3c4043;
+        }
+
+        body {
+            font-family: 'Consolas', 'Courier New', monospace;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px;
+            border-bottom: 1px solid #5f6368;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        h1 { margin: 0; color: var(--accent); }
+        .stats { margin-top: 10px; font-size: 0.9rem; color: #9aa0a6; }
+
+        .game-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 40px;
+            width: 90%;
+            max-width: 1000px;
+        }
+
+        /* Àrea del Dibuix */
+        .canvas-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            border: 2px dashed #5f6368;
+            border-radius: 10px;
+            background-color: #2b2e33;
+        }
+
+        /* Àrea de Joc */
+        .play-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 300px;
+        }
+
+        .hint-box {
+            background-color: #303134;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-left: 5px solid var(--accent);
+            width: 100%;
+        }
+
+        .hint-label { font-weight: bold; color: var(--accent); display: block; margin-bottom: 5px; }
+        .hint-text { font-style: italic; font-size: 1.1rem; }
+
+        .word-display {
+            font-size: 2.5rem;
+            letter-spacing: 10px;
+            margin: 20px 0;
+            font-weight: bold;
+            font-family: monospace;
+            word-break: break-all;
+            text-align: center;
+        }
+
+        /* Teclat */
+        .keyboard {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 8px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .key {
+            background-color: var(--key-bg);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            padding: 10px 0;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+
+        .key:hover:not(:disabled) { background-color: var(--accent); color: #000; }
+        .key:disabled { opacity: 0.5; cursor: not-allowed; }
+        .key.correct { background-color: var(--correct); color: #000; border: 1px solid var(--correct); }
+        .key.wrong { background-color: var(--wrong); color: #000; }
+
+        /* Modal Resultats */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: #303134;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            border: 2px solid var(--accent);
+            max-width: 400px;
+        }
+        .modal h2 { margin-top: 0; font-size: 2rem; }
+        .btn-reset {
+            background-color: var(--accent);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1.1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .btn-reset:hover { opacity: 0.9; }
+
+        @media (max-width: 600px) {
+            .keyboard { grid-template-columns: repeat(7, 1fr); }
+            .word-display { font-size: 1.8rem; letter-spacing: 5px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>EL PENJAT DIGITAL</h1>
+        <div class="stats">
+            Encerts: <span id="wins">0</span> | Partides: <span id="total-games">0</span>
+        </div>
+    </header>
+
+    <div class="game-container">
+        <div class="canvas-area">
+            <canvas id="hangman" width="250" height="300"></canvas>
+        </div>
+
+        <div class="play-area">
+            <div class="hint-box">
+                <span class="hint-label">PISTA:</span>
+                <span id="hint-text" class="hint-text">...</span>
+            </div>
+
+            <div id="word-display" class="word-display">_ _ _ _ _</div>
+
+            <div id="keyboard" class="keyboard">
+                </div>
+        </div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">Has Guanyat!</h2>
+            <p id="modal-msg">La paraula era: ...</p>
+            <button class="btn-reset" onclick="initGame()">Següent Paraula</button>
+        </div>
+    </div>
+
+    <script>
+        // --- BASE DE DADES DE PARAULES ---
+        const words = [
+            { word: "PYTHON", hint: "Llenguatge de programació creat per Guido van Rossum." },
+            { word: "ANDROID", hint: "Sistema operatiu mòbil basat en el nucli Linux." },
+            { word: "VARIABLE", hint: "Espai de memòria per emmagatzemar dades que poden canviar." },
+            { word: "BUCLE", hint: "Estructura que repeteix un bloc de codi diverses vegades." },
+            { word: "CANVAS", hint: "Component d'App Inventor (Llenç) utilitzat per dibuixar o moure sprites." },
+            { word: "PIXEL", hint: "La unitat més petita d'una imatge digital." },
+            { word: "DEBUG", hint: "Acció de cercar i solucionar errors en el codi." },
+            { word: "BOOLEAN", hint: "Tipus de dada que només pot ser Cert (True) o Fals (False)." },
+            { word: "STRING", hint: "Cadena de caràcters (text) en programació." },
+            { word: "INTERFACE", hint: "Part del programa que permet la comunicació amb l'usuari (UI)." },
+            { word: "INPUT", hint: "Dades que entren en un sistema informàtic." },
+            { word: "SERVER", hint: "Ordinador potent que ofereix serveis a altres ordinadors (clients)." },
+            { word: "WIFI", hint: "Tecnologia de xarxa sense fils." },
+            { word: "COMPILER", hint: "Traductor de codi font a codi màquina d'un sol cop." },
+            { word: "INDENTACIO", hint: "Espai al marge esquerre del codi, crucial en Python per definir blocs." },
+            { word: "SPRITE", hint: "Imatge o animació 2D que es mou dins d'un Canvas." },
+            { word: "BACKEND", hint: "Part lògica d'una web o app que l'usuari no veu directament." }
+        ];
+
+        // Configuració
+        const maxMistakes = 9; // Nombre de parts del dibuix
+        let selectedWordObj;
+        let selectedWord = "";
+        let guessedLetters = [];
+        let mistakes = 0;
+        let wins = 0;
+        let totalGames = 0;
+
+        // DOM
+        const canvas = document.getElementById('hangman');
+        const ctx = canvas.getContext('2d');
+        const wordDisplay = document.getElementById('word-display');
+        const hintText = document.getElementById('hint-text');
+        const keyboardDiv = document.getElementById('keyboard');
+        const modal = document.getElementById('modal');
+
+        // --- DIBUIX DEL PENJAT ---
+        function drawLine(fromX, fromY, toX, toY) {
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+        }
+
+        function drawHead() {
+            ctx.beginPath();
+            ctx.arc(150, 70, 20, 0, Math.PI * 2, true);
+            ctx.stroke();
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#e8eaed';
+            ctx.lineCap = "round";
+        }
+
+        const drawSteps = [
+            () => drawLine(20, 280, 100, 280), // 1. Base
+            () => drawLine(60, 280, 60, 20),   // 2. Pal vertical
+            () => drawLine(60, 20, 150, 20),   // 3. Pal horitzontal
+            () => drawLine(150, 20, 150, 50),  // 4. Corda
+            () => drawHead(),                  // 5. Cap
+            () => drawLine(150, 90, 150, 190), // 6. Cos
+            () => drawLine(150, 110, 120, 160),// 7. Braç esquerre
+            () => drawLine(150, 110, 180, 160),// 8. Braç dret
+            () => drawLine(150, 190, 120, 250),// 9. Cama esquerra
+            () => drawLine(150, 190, 180, 250) // 10. Cama dreta (GAME OVER)
+        ];
+
+        // --- LÒGICA DEL JOC ---
+
+        function initGame() {
+            modal.style.display = 'none';
+            mistakes = 0;
+            guessedLetters = [];
+            clearCanvas();
+            
+            // Seleccionar paraula aleatòria
+            selectedWordObj = words[Math.floor(Math.random() * words.length)];
+            selectedWord = selectedWordObj.word;
+            
+            hintText.textContent = selectedWordObj.hint;
+            
+            updateWordDisplay();
+            generateKeyboard();
+        }
+
+        function updateWordDisplay() {
+            const display = selectedWord.split('').map(letter => 
+                guessedLetters.includes(letter) ? letter : '_'
+            ).join(' ');
+            
+            wordDisplay.textContent = display;
+            
+            // Comprovar victòria
+            if (!display.includes('_')) {
+                endGame(true);
+            }
+        }
+
+        function handleGuess(letter) {
+            if (guessedLetters.includes(letter) || mistakes >= drawSteps.length) return;
+
+            guessedLetters.push(letter);
+            const btn = document.getElementById(`btn-${letter}`);
+            
+            if (selectedWord.includes(letter)) {
+                btn.classList.add('correct');
+                updateWordDisplay();
+            } else {
+                btn.classList.add('wrong');
+                // Dibuixar part del penjat
+                if (mistakes < drawSteps.length) {
+                    drawSteps[mistakes]();
+                    mistakes++;
+                }
+                
+                if (mistakes === drawSteps.length) {
+                    endGame(false);
+                }
+            }
+            btn.disabled = true;
+        }
+
+        function endGame(won) {
+            totalGames++;
+            document.getElementById('total-games').textContent = totalGames;
+            
+            const title = document.getElementById('modal-title');
+            const msg = document.getElementById('modal-msg');
+            const content = document.querySelector('.modal-content');
+
+            if (won) {
+                wins++;
+                document.getElementById('wins').textContent = wins;
+                title.textContent = "¡Molt bé!";
+                title.style.color = "var(--correct)";
+                content.style.borderColor = "var(--correct)";
+                msg.textContent = `Has encertat: ${selectedWord}`;
+            } else {
+                title.textContent = "Game Over";
+                title.style.color = "var(--wrong)";
+                content.style.borderColor = "var(--wrong)";
+                msg.textContent = `La paraula era: ${selectedWord}`;
+            }
+            
+            setTimeout(() => {
+                modal.style.display = 'flex';
+            }, 500);
+        }
+
+        // --- TECLAT ---
+        function generateKeyboard() {
+            keyboardDiv.innerHTML = '';
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            
+            alphabet.split('').forEach(letter => {
+                const btn = document.createElement('button');
+                btn.textContent = letter;
+                btn.classList.add('key');
+                btn.id = `btn-${letter}`;
+                btn.onclick = () => handleGuess(letter);
+                keyboardDiv.appendChild(btn);
+            });
+        }
+
+        // Teclat físic
+        document.addEventListener('keydown', (e) => {
+            if(modal.style.display === 'flex') return;
+            const letter = e.key.toUpperCase();
+            if (letter.match(/^[A-Z]$/)) {
+                const btn = document.getElementById(`btn-${letter}`);
+                if (btn && !btn.disabled) {
+                    handleGuess(letter);
+                }
+            }
+        });
+
+        // INICIAR
+        initGame();
+
+    </script>
+    <main class="game-container">
+        <section class="game-card">
+                <a href="index.html" class="btn">Tornar a l'inici</a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
